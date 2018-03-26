@@ -84,5 +84,61 @@ if ( $USER->instructor ) {
     echo "<pre>\n";
     echo $response;
     echo "</pre>\n";
+
+    ////////////////////////////////////////////
+
+        // Load up the LTI 1.0 Support code
+        require_once 'util/lti_util.php';
+    
+        var_dump($ROSTER);
+    
+        $encryptedSecret = LTIX::ltiParameter('secret');
+        $secret = LTIX::decrypt_secret($encryptedSecret);
+        $key = LTIX::ltiParameter('key_key');
+    
+        $oauth_consumer_secret = $secret;
+        if (strlen($oauth_consumer_secret) < 1 ) $oauth_consumer_secret = 'secret';
+    ?>
+        <p>
+            <form method="POST">
+                Service URL: <input type="text" name="url" size="80" disabled="true" value="<?php echo($ROSTER->url);?>"/></br>
+                lis_result_sourcedid: <input type="text" name="id" disabled="true" size="100" value="<?php echo($ROSTER->id);?>"/></br>
+                OAuth Consumer Key: <input type="text" name="key" disabled="true" size="80" value="<?php echo($key);?>"/></br>
+                OAuth Consumer Secret: <input type="text" name="secret" size="80" value="<?php echo($oauth_consumer_secret);?>"/></br>
+            </form>
+        </p>
+    <?php
+    
+        $url = $ROSTER->url;
+        $message = 'basic-lis-readmembershipsforcontext';
+    
+        $data = array(
+          'lti_message_type' => $message,
+          'id' => $ROSTER->id);
+        
+        $oauth_consumer_key = $key;
+        
+        $newdata = signParameters($data, $url, 'POST', $oauth_consumer_key, $oauth_consumer_secret);
+        
+        echo "<pre>\n";
+        echo "Posting to URL $url \n";
+        
+        ksort($newdata);
+        foreach($newdata as $key => $value ) {
+            if (get_magic_quotes_gpc()) $value = stripslashes($value);
+            print "$key=$value (".mb_detect_encoding($value).")\n";
+        }
+        
+        global $LastOAuthBodyBaseString;
+        echo "\nBase String:\n</pre><p>\n";
+        echo $LastOAuthBodyBaseString;
+        echo "\n</p>\n<pre>\n";
+        
+        $retval = do_body_request($url, "POST", http_build_query($newdata));
+        
+        $retval = str_replace("<","&lt;",$retval);
+        $retval = str_replace(">","&gt;",$retval);
+        echo "Response from server\n";
+        echo $retval;
 }
 $OUTPUT->footer();
