@@ -39,19 +39,23 @@ $OUTPUT->flashMessages();
 if ( $USER->instructor ) {
     echo("<p>handledRoster: ". ($handledRoster?"T":"F") ."</p>");
 
+    echo "<pre>\n";
+    var_dump($ROSTER);
+    echo "</pre>\n";	
+
+    $id = $ROSTER->id;
+    $url = $ROSTER->url;
     $encryptedSecret = LTIX::ltiParameter('secret');
     $secret = LTIX::decrypt_secret($encryptedSecret);
     $key_key = LTIX::ltiParameter('key_key');
-    $membershipsurl = $ROSTER->url;
-    $membershipsid = $ROSTER->id;
 
     $content_type = "application/x-www-form-urlencoded";
-    $membershipsid = htmlspecialchars($membershipsid);
+    $id = htmlspecialchars($id);
 
     $messagetype = LTIConstants::LTI_MESSAGE_TYPE_CONTEXTMEMBERSHIPS;
 
     $parameters = array(
-        LTIConstants::EXT_CONTEXT_REQUEST_ID => $membershipsid,
+        LTIConstants::EXT_CONTEXT_REQUEST_ID => $id,
         LTIConstants::LTI_MESSAGE_TYPE => $messagetype,
         LTIConstants::LTI_VERSION => LTIConstants::LTI_VERSION_1
     );
@@ -69,21 +73,36 @@ if ( $USER->instructor ) {
 
     $test_consumer = new OAuthConsumer($key_key, $secret, NULL);
 
-    $acc_req = OAuthRequest::from_consumer_and_token($test_consumer, $test_token, "POST", $membershipsurl, $parameters);
+    $acc_req = OAuthRequest::from_consumer_and_token($test_consumer, $test_token, "POST", $url, $parameters);
     $acc_req->sign_request($hmac_method, $test_consumer, $test_token);
 
     $header = $acc_req->to_header();
     $header .= PHP_EOL . "Content-Type: " . $content_type . PHP_EOL;
 
-    $response = Net::doBody($membershipsurl, "POST", $body,$header);
+    $response = Net::doBody($url, "POST", $body, $header);
 
     $response = str_replace("<","&lt;",$response);
     $response = str_replace(">","&gt;",$response);
     echo "Response from server\n";
 
     echo "<pre>\n";
+    var_dump($header);
+    echo "</pre>";
+
+    echo "<pre>\n";
+    
+        $b = explode('&',$body);
+        foreach($b as $key => $value ) {
+           if (get_magic_quotes_gpc()) $value = stripslashes($value);
+            print "$key=$value (".mb_detect_encoding($value).")\n";
+        }
+
+    echo "</pre>";
+
+    echo "<pre>\n";
     echo $response;
     echo "</pre>\n";
+
 
     ////////////////////////////////////////////
 
@@ -91,35 +110,34 @@ if ( $USER->instructor ) {
         require_once 'util/lti_util.php';
     
         var_dump($ROSTER);
-    
-        $encryptedSecret = LTIX::ltiParameter('secret');
-        $secret = LTIX::decrypt_secret($encryptedSecret);
-        $key = LTIX::ltiParameter('key_key');
-    
-        $oauth_consumer_secret = $secret;
-        if (strlen($oauth_consumer_secret) < 1 ) $oauth_consumer_secret = 'secret';
     ?>
         <p>
             <form method="POST">
-                Service URL: <input type="text" name="url" size="80" disabled="true" value="<?php echo($ROSTER->url);?>"/></br>
-                lis_result_sourcedid: <input type="text" name="id" disabled="true" size="100" value="<?php echo($ROSTER->id);?>"/></br>
-                OAuth Consumer Key: <input type="text" name="key" disabled="true" size="80" value="<?php echo($key);?>"/></br>
-                OAuth Consumer Secret: <input type="text" name="secret" size="80" value="<?php echo($oauth_consumer_secret);?>"/></br>
+                Service URL: <?php echo($url);?></br>
+                lis_result_sourcedid: <?php echo($id);?></br>
+                OAuth Consumer Key: <?php echo($key_key);?></br>
+                OAuth Consumer Secret: <?php echo($secret);?></br>
             </form>
         </p>
     <?php
     
-        $url = $ROSTER->url;
-        $message = 'basic-lis-readmembershipsforcontext';
-    
         $data = array(
-          'lti_message_type' => $message,
-          'id' => $ROSTER->id);
+          'lti_message_type' => $messagetype,
+          'id' => $id);
         
-        $oauth_consumer_key = $key;
-        
-        $newdata = signParameters($data, $url, 'POST', $oauth_consumer_key, $oauth_consumer_secret);
-        
+        $newdata = signParameters($data, $url, 'POST', $key_key, $secret);
+        $ndata = LTI::signParameters($data, $url, 'Post', $key_key, $secret);
+
+	//$ndata->set_parameter(LTIConstants::EXT_CONTEXT_REQUEST_ID, $id);
+        //$ndata->set_parameter(LTIConstants::LTI_MESSAGE_TYPE, $messagetype);
+        //$ndata->set_parameter(LTIConstants::LTI_VERSION, LTIConstants::LTI_VERSION_1);
+ 
+        //$param = array_merge( $ndata->get_parameters(), array(
+	//   'oauth_callback' => 'about:blank'
+        //));
+
+	$param = $ndata; //explode('&', $ndata->get_signable_parameters());
+
         echo "<pre>\n";
         echo "Posting to URL $url \n";
         
@@ -128,17 +146,27 @@ if ( $USER->instructor ) {
             if (get_magic_quotes_gpc()) $value = stripslashes($value);
             print "$key=$value (".mb_detect_encoding($value).")\n";
         }
-        
-        global $LastOAuthBodyBaseString;
-        echo "\nBase String:\n</pre><p>\n";
-        echo $LastOAuthBodyBaseString;
-        echo "\n</p>\n<pre>\n";
-        
-        $retval = do_body_request($url, "POST", http_build_query($newdata));
-        
+	echo "----\n";
+        ksort($param);
+        foreach($param as $key => $value ) {
+            if (get_magic_quotes_gpc()) $value = stripslashes($value);
+            print "$key=$value (".mb_detect_encoding($value).")\n";
+        }
+
+	//var_dump($ndata->get_signable_parameters());
+        echo "</pre>";
+
+	//$retval = do_body_request($url, "POST", http_build_query($newdata)); //http_build_query($param)
+	$retval = Net::doBody($url, "POST", http_build_query($ndata), "Content-Type: application/x-www-form-urlencoded"); //$body, $header);
+	
         $retval = str_replace("<","&lt;",$retval);
         $retval = str_replace(">","&gt;",$retval);
+
+	echo "<pre>\n";
         echo "Response from server\n";
         echo $retval;
+	echo "<\pre>";
+
 }
 $OUTPUT->footer();
+
