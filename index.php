@@ -23,7 +23,7 @@ use \Tsugi\Util\Mimeparse;
 // No parameter means we require CONTEXT, USER, and LINK
 $LAUNCH = LTIX::requireData();
 
-$handledRoster = LTIX::populateRoster(true);
+$handledRoster = LTIX::populateRoster();
 
 error_reporting(E_ALL & ~E_NOTICE);
 ini_set("display_errors", 1);
