@@ -23,7 +23,7 @@ use \Tsugi\Util\Mimeparse;
 // No parameter means we require CONTEXT, USER, and LINK
 $LAUNCH = LTIX::requireData();
 
-$handledRoster = LTIX::populateRoster();
+$handledRoster = LTIX::populateRoster(false, false);
 
 error_reporting(E_ALL & ~E_NOTICE);
 ini_set("display_errors", 1);
@@ -41,7 +41,7 @@ if ( $USER->instructor ) {
 
     echo "<pre>\n";
     var_dump($ROSTER);
-    echo "</pre>\n";	
+    echo "</pre>\n";
 
     $id = $ROSTER->id;
     $url = $ROSTER->url;
@@ -90,7 +90,7 @@ if ( $USER->instructor ) {
     echo "</pre>";
 
     echo "<pre>\n";
-    
+
         $b = explode('&',$body);
         foreach($b as $key => $value ) {
            if (get_magic_quotes_gpc()) $value = stripslashes($value);
@@ -108,7 +108,7 @@ if ( $USER->instructor ) {
 
         // Load up the LTI 1.0 Support code
         require_once 'util/lti_util.php';
-    
+
         var_dump($ROSTER);
     ?>
         <p>
@@ -120,18 +120,18 @@ if ( $USER->instructor ) {
             </form>
         </p>
     <?php
-    
+
         $data = array(
           'lti_message_type' => $messagetype,
           'id' => $id);
-        
+
         $newdata = signParameters($data, $url, 'POST', $key_key, $secret);
         $ndata = LTI::signParameters($data, $url, 'Post', $key_key, $secret);
 
 	//$ndata->set_parameter(LTIConstants::EXT_CONTEXT_REQUEST_ID, $id);
         //$ndata->set_parameter(LTIConstants::LTI_MESSAGE_TYPE, $messagetype);
         //$ndata->set_parameter(LTIConstants::LTI_VERSION, LTIConstants::LTI_VERSION_1);
- 
+
         //$param = array_merge( $ndata->get_parameters(), array(
 	//   'oauth_callback' => 'about:blank'
         //));
@@ -140,7 +140,7 @@ if ( $USER->instructor ) {
 
         echo "<pre>\n";
         echo "Posting to URL $url \n";
-        
+
         ksort($newdata);
         foreach($newdata as $key => $value ) {
             if (get_magic_quotes_gpc()) $value = stripslashes($value);
@@ -158,7 +158,7 @@ if ( $USER->instructor ) {
 
 	//$retval = do_body_request($url, "POST", http_build_query($newdata)); //http_build_query($param)
 	$retval = Net::doBody($url, "POST", http_build_query($ndata), "Content-Type: application/x-www-form-urlencoded"); //$body, $header);
-	
+
         $retval = str_replace("<","&lt;",$retval);
         $retval = str_replace(">","&gt;",$retval);
 
@@ -169,4 +169,3 @@ if ( $USER->instructor ) {
 
 }
 $OUTPUT->footer();
-
